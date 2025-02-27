@@ -4,7 +4,6 @@
 
 import os
 import mido
-import numpy as np
 
 def midi_to_digital_score(midi_path, output_path):
     # 打开 MIDI 文件
