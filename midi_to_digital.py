@@ -58,9 +58,17 @@ def midi_to_digital_score(midi_path, output_path):
     print(f"转换完成！数字谱已保存到 {output_path}")
 
 if __name__ == '__main__':
-    # name = '[千恋万花]以恋结缘（高质量）'
-    name = '竹取飞翔'
     script_dir = os.path.dirname(os.path.abspath(__file__))  # 获取脚本所在目录
-    midi_path = os.path.join(script_dir, f'midi/{name}.mid')  # 源 midi 文件路径
-    output_path = os.path.join(script_dir, f'digital/{name}.txt')  # 输出的数字谱文件路径
-    midi_to_digital_score(midi_path, output_path)  # 转换 MIDI 文件
+    midi_dir = os.path.join(script_dir, 'midi')  # MIDI 文件夹路径
+    songs_dir = os.path.join(script_dir, 'songs')  # 输出的数字谱文件夹路径
+
+    # 确保输出目录存在
+    os.makedirs(songs_dir, exist_ok=True)
+
+    # 遍历 MIDI 文件夹中的所有 .mid 文件
+    for midi_file in os.listdir(midi_dir):
+        if midi_file.endswith('.mid'):
+            midi_path = os.path.join(midi_dir, midi_file)  # 源 MIDI 文件路径
+            song_name = os.path.splitext(midi_file)[0]  # 去掉文件扩展名
+            output_path = os.path.join(songs_dir, f'{song_name}.txt')  # 输出的数字谱文件路径
+            midi_to_digital_score(midi_path, output_path)  # 转换 MIDI 文件
