@@ -124,7 +124,6 @@ local function allocate_noteblocks(max_noteblocks, noteblocks)
         total_needed = total_needed + count
     end
     if #noteblocks < total_needed then
-        print("当前音符盒数：" .. #noteblocks .. "，共需要 " .. total_needed .. " 个音符盒")
         return nil
     end
 
@@ -146,26 +145,68 @@ end
 -- 按开始时间排序，每次播放相同开始时间的声音，
 -- 之后休眠相邻行之间的开始时间时间差，播放之后的行。
 
+-- 播放音乐
 local function play_music(score, allocated_noteblocks)
     local laststarttime = 0 -- 上一个播放的音符的开始时间
     local currentgroup = {} -- 当前时间点的音符组
     local noteblock_index = {} -- 存储每个音轨当前使用的铁音符盒索引
+    local paused = false -- 暂停标志
+    local stop = false -- 停止标志
+    local show_info = false -- 是否展示测试信息
 
     -- 初始化 noteblock_index
     for track, _ in pairs(allocated_noteblocks) do
         noteblock_index[track] = 1
     end
 
+    -- 根据用户输入进行操作
+    local function handle_input()
+        while true do
+            local _, _, _, code = event.pull("key_down")
+            if code == 105 then -- 'i' 键切换展示信息
+                show_info = not show_info
+                if show_info then
+                    print("展示测试信息")
+                else
+                    print("隐藏测试信息")
+                end
+            elseif code == 32 then -- 空格键暂停/继续
+                    paused = not paused
+                    if paused then
+                        print("音乐已暂停")
+                    else
+                        print("音乐继续播放")
+                    end
+            elseif code == 113 then -- 'q' 键退出
+                stop = true
+                break
+            end
+        end
+    end
+
+    -- 创建输入线程
+    local input_thread = require("thread").create(handle_input)
+
     for _, note in ipairs(score) do
+        if stop then
+            break
+        end
+
+        while paused do
+            os.sleep(0.2)
+        end
+
         table.insert(currentgroup, note) -- 将音符添加到当前组
 
-        -- 打印 note 的各个值用于测试
-        print("Track: " .. note.track ..
-              ", Channel: " .. note.channel ..
-              ", Instrument: " .. note.instrument ..
-              ", Note: " .. note.note ..
-              ", Start: " .. note.start ..
-              ", Duration: " .. note.duration)
+        if show_info then
+            -- 打印 note 的各个值用于测试
+            print("音轨: " .. note.track ..
+                  ", 通道: " .. note.channel ..
+                  ", 乐器: " .. note.instrument ..
+                  ", 音调: " .. note.note ..
+                  ", 开始时间: " .. note.start ..
+                  ", 持续时间: " .. note.duration)
+        end
 
         -- 到达下一个时间点
         if note.start ~= laststarttime then
@@ -204,8 +245,9 @@ local function play_music(score, allocated_noteblocks)
             currentgroup = {} -- 重置当前组的音符
             laststarttime = note.start -- 更新上一个播放的音符的开始时间
         end
-
     end
+
+    input_thread:kill() -- 结束输入线程
 end
 
 -- 列出 songs 文件夹中的所有歌曲
@@ -224,29 +266,36 @@ end
 local songs_folder = "./songs"
 local songs = list_songs(songs_folder)
 
-print("歌曲列表：")
-for i, song in ipairs(songs) do
-    print(i .. ". " .. song)
-end
+while true do
+    print("歌曲列表：")
+    for i, song in ipairs(songs) do
+        print(i .. ". " .. song)
+    end
 
-print("请输入要播放的歌曲编号：")
-local choice = tonumber(io.read())
-if choice and choice >= 1 and choice <= #songs then
-    local selected_song = songs[choice]
-    local score_file = songs_folder .. "/" .. selected_song  -- 选择的数字谱文件路径
-    local score = load_score(score_file) -- 读取数字谱文件
-    local max_noteblocks = calculate_max_noteblocks(score) -- 计算每个音轨所需的最大铁音符盒数
-    for track, count in pairs(max_noteblocks) do
-        print("音轨：" .. track .. "，所需铁音符盒数：" .. count)
-    end
-    local allocated_noteblocks = allocate_noteblocks(max_noteblocks, note_blocks) -- 分配铁音符盒
-    if allocated_noteblocks then
-        print("开始播放音乐...")
-        play_music(score, allocated_noteblocks)
-        print("音乐播放完毕！")
+    print("请输入要播放的歌曲编号（输入 0 退出程序）：")
+    local choice = tonumber(io.read())
+    if choice == 0 then
+        break
+    elseif choice and choice >= 1 and choice <= #songs then
+        local selected_song = songs[choice]
+        local score_file = songs_folder .. "/" .. selected_song  -- 选择的数字谱文件路径
+        local score = load_score(score_file) -- 读取数字谱文件
+        local max_noteblocks = calculate_max_noteblocks(score) -- 计算每个音轨所需的最大铁音符盒数  
+        local allocated_noteblocks = allocate_noteblocks(max_noteblocks, note_blocks) -- 分配铁音符盒
+        if allocated_noteblocks then
+            print("开始播放音乐...")
+            print("按空格键暂停/继续，按 'q' 键退出，按 'i' 键切换展示信息")
+            play_music(score, allocated_noteblocks)
+            print("音乐播放完毕！")
+        else
+            local total_needed = 0
+            for track, count in pairs(max_noteblocks) do
+                print("音轨：" .. track .. "，所需铁音符盒数：" .. count)
+                total_needed = total_needed + count
+            end
+            print("当前音符盒数：" .. #note_blocks .. "，共需要 " .. total_needed .. " 个音符盒，无法播放音乐。")
+        end
     else
-        print("铁音符盒数量不足，无法播放音乐。")
+        print("无效的选择。")
     end
-else
-    print("无效的选择。")
 end
