@@ -230,8 +230,8 @@ local function play_music(score, allocated_noteblocks)
                         -- 降八度
                         adjusted_note = adjusted_note - 12
                     end
-                    -- 播放音符（乐器编号，音符编号）
-                    noteblock.playNote(instruments[group_note.instrument], adjusted_note)
+                    -- 播放音符（乐器编号，音符编号，持续时间）
+                    noteblock.playNote(instruments[group_note.instrument], adjusted_note, group_note.duration)
 
                     -- 更新铁音符盒索引，循环使用铁音符盒
                     noteblock_index[track] = noteblock_index[track] % #noteblocks + 1
